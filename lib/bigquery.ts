@@ -34,6 +34,17 @@ export function table(name: string): string {
   return `\`${process.env.GCP_PROJECT_ID}.${dataset()}.${name}\``;
 }
 
+/**
+ * Your existing BOM table lives in a different dataset (IMS_New_Version),
+ * not the one this app owns. Fully qualified, set via env var so it's not
+ * hardcoded across environments.
+ */
+export function bomTable(): string {
+  const id = process.env.BOM_TABLE_ID;
+  if (!id) throw new Error("BOM_TABLE_ID is not set");
+  return `\`${id}\``;
+}
+
 /** First-of-month DATE string for the current recon period, e.g. "2026-09-01". */
 export function currentReconMonth(): string {
   const now = new Date();

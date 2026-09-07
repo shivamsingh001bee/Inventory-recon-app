@@ -78,12 +78,6 @@ async function main() {
         { name: "recon_month", type: "DATE", mode: "REQUIRED" }
       ],
       timePartitioning: { type: "MONTH", field: "recon_month" }
-    },
-    bom: {
-      schema: [
-        { name: "inv_id", type: "STRING", mode: "REQUIRED" },
-        { name: "status", type: "STRING", mode: "NULLABLE" }
-      ]
     }
   };
 

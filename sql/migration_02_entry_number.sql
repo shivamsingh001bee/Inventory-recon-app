@@ -22,12 +22,12 @@ ALTER TABLE `mis-gempundit.inventory_recon.lot_entries`
 ALTER TABLE `mis-gempundit.inventory_recon.lot_entries`
   ALTER COLUMN category DROP NOT NULL;
 
--- 4. New table: bom  (your "BOM_Helper" — Inv_ID + status, used for the
---    "Already Present in BOM" check, with an RTO exception).
-CREATE TABLE IF NOT EXISTS `mis-gempundit.inventory_recon.bom` (
-  inv_id STRING NOT NULL,
-  status STRING
-);
+-- 4. BOM check: this app does NOT create a local `bom` table. It queries
+--    your existing BOM table directly (cross-dataset, same project):
+--    mis-gempundit.IMS_New_Version.BOM  (columns: Inv_ID, RTO_Mark)
+--    Set BOM_TABLE_ID=mis-gempundit.IMS_New_Version.BOM in your env vars.
+--    Nothing to create here — just confirm the service account has read
+--    access to the IMS_New_Version dataset too, not only inventory_recon.
 
 -- 5. New table: no_pkt_entries  ("Entry where no Pkt No." form's own database)
 CREATE TABLE IF NOT EXISTS `mis-gempundit.inventory_recon.no_pkt_entries` (

@@ -65,12 +65,10 @@ CREATE TABLE IF NOT EXISTS `your_project.inventory_recon.no_pkt_entries` (
 )
 PARTITION BY recon_month;
 
--- 6. bom (your "BOM_Helper") — used for the "Already Present in BOM" check.
---    status = 'RTO' is the one exception that lets an entry through anyway.
-CREATE TABLE IF NOT EXISTS `your_project.inventory_recon.bom` (
-  inv_id  STRING NOT NULL,
-  status  STRING
-);
+-- 6. BOM check: this app does NOT own a `bom` table. It reads your existing
+--    BOM table directly, in a different dataset (cross-dataset query, same
+--    project): e.g. mis-gempundit.IMS_New_Version.BOM (columns: Inv_ID, RTO_Mark).
+--    Point BOM_TABLE_ID at it in your env vars — nothing to create here.
 
 -- Seed example:
 -- INSERT INTO `your_project.inventory_recon.users` (user_id, name, role, active, created_at)

@@ -1,4 +1,4 @@
-import { getBigQuery, table } from "./bigquery";
+import { getBigQuery, table, bomTable } from "./bigquery";
 
 export type EntryStatus =
   | "Valid Inventory No"
@@ -38,9 +38,9 @@ export async function validateNormalEntries(
   const [bomRows] = nonBlank.length
     ? await bq.query({
         query: `
-          SELECT inv_id, status
-          FROM ${table("bom")}
-          WHERE inv_id IN UNNEST(@ids)
+          SELECT Inv_ID AS inv_id, RTO_Mark AS status
+          FROM ${bomTable()}
+          WHERE Inv_ID IN UNNEST(@ids)
         `,
         params: { ids: nonBlank }
       })
