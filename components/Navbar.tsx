@@ -8,7 +8,8 @@ const links = [
   { href: "/dashboard", label: "Overview", dot: "bg-slate" },
   { href: "/entry/normal", label: "Normal Entry", dot: "bg-sapphire" },
   { href: "/entry/lot", label: "Lot Entry", dot: "bg-topaz" },
-  { href: "/entry/no-pkt", label: "No Pkt No.", dot: "bg-amethyst" }
+  { href: "/entry/no-pkt", label: "No Pkt No.", dot: "bg-amethyst" },
+  { href: "/reports", label: "Reports", dot: "bg-ruby" }
 ];
 
 export default function Navbar() {

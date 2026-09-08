@@ -45,6 +45,16 @@ export function bomTable(): string {
   return `\`${id}\``;
 }
 
+/**
+ * Same pattern as bomTable() — the real inventory master view, also in
+ * IMS_New_Version, used by the monthly reconciliation reports.
+ */
+export function masterTable(): string {
+  const id = process.env.FINAL_INVENTORY_MASTER_ID;
+  if (!id) throw new Error("FINAL_INVENTORY_MASTER_ID is not set");
+  return `\`${id}\``;
+}
+
 /** First-of-month DATE string for the current recon period, e.g. "2026-09-01". */
 export function currentReconMonth(): string {
   const now = new Date();
