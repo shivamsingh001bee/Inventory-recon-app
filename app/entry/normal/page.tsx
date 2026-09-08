@@ -6,8 +6,11 @@ export default function NormalEntryPage() {
     <main>
       <Navbar />
       <div className="max-w-2xl mx-auto px-6 py-12">
-        <p className="field-label mb-2">Packet-level reconciliation</p>
-        <h1 className="font-display italic text-3xl mb-10">Normal Entry</h1>
+        <div className="flex items-center gap-2.5 mb-3">
+          <span className="w-2 h-2 rounded-full bg-sapphire" />
+          <span className="text-sapphire text-sm font-medium">Packet-level reconciliation</span>
+        </div>
+        <h1 className="font-display font-semibold text-3xl text-ink mb-10">Normal Entry</h1>
         <NormalEntryForm />
       </div>
     </main>

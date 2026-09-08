@@ -115,7 +115,7 @@ export default function LotEntryForm() {
       </button>
 
       {message && (
-        <p className={`mt-5 text-sm font-mono ${message.type === "error" ? "text-rust" : "text-emerald-light"}`}>
+        <p className={`mt-5 text-sm font-mono ${message.type === "error" ? "text-ruby" : "text-emerald"}`}>
           {message.text}
         </p>
       )}

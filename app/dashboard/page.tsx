@@ -28,25 +28,25 @@ export default function DashboardPage() {
     <main>
       <Navbar />
       <div className="max-w-4xl mx-auto px-6 py-12">
-        <p className="field-label mb-2">{monthLabel || "This month"}</p>
-        <h1 className="font-display italic text-3xl mb-10">Your reconciliation progress</h1>
+        <p className="text-slate text-sm mb-2">{monthLabel || "This month"}</p>
+        <h1 className="font-display font-semibold text-3xl text-ink mb-10">Your reconciliation progress</h1>
 
         <div className="grid grid-cols-3 gap-4 mb-10">
-          <div className="card p-6">
-            <p className="field-label">Normal entries submitted</p>
-            <p className="font-mono text-4xl text-brass">{summary?.normalCount ?? "—"}</p>
+          <div className="card border-t-2 border-t-sapphire p-6">
+            <p className="field-label">Normal entries</p>
+            <p className="font-mono text-4xl text-ink">{summary?.normalCount ?? "—"}</p>
           </div>
-          <div className="card p-6">
-            <p className="field-label">Lot entries submitted</p>
-            <p className="font-mono text-4xl text-brass">{summary?.lotCount ?? "—"}</p>
+          <div className="card border-t-2 border-t-topaz p-6">
+            <p className="field-label">Lot entries</p>
+            <p className="font-mono text-4xl text-ink">{summary?.lotCount ?? "—"}</p>
           </div>
-          <div className="card p-6">
+          <div className="card border-t-2 border-t-amethyst p-6">
             <p className="field-label">No Pkt No. entries</p>
-            <p className="font-mono text-4xl text-brass">{summary?.noPktCount ?? "—"}</p>
+            <p className="font-mono text-4xl text-ink">{summary?.noPktCount ?? "—"}</p>
           </div>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Link href="/entry/normal" className="btn-primary">
             New normal entry
           </Link>

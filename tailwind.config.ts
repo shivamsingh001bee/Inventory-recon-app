@@ -5,26 +5,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#181511",
-        charcoal: "#242019",
-        paper: "#EFE9DD",
-        parchment: "#F7F3E9",
-        brass: "#B08D57",
-        "brass-dark": "#8C6D3F",
-        emerald: "#1F4B3F",
-        "emerald-light": "#2C6653",
-        rust: "#A23B33",
-        line: "#D8CFB8"
+        // base
+        paper: "#F5F8FC",     // page background — cool, easy on the eyes for long entry sessions
+        surface: "#FFFFFF",   // cards, inputs
+        ink: "#1B2733",       // primary text
+        slate: "#64748B",     // secondary/muted text
+        line: "#DDE4ED",      // borders/dividers
+
+        // section accents — one hue per form, used for wayfinding
+        sapphire: "#2657A6",
+        "sapphire-dark": "#1D4680",
+        topaz: "#B87A1A",
+        "topaz-dark": "#96630F",
+        amethyst: "#6B4C9A",
+        "amethyst-dark": "#553B7C",
+
+        // status — meaning stays consistent everywhere they appear
+        emerald: "#16805A",
+        "emerald-light": "#EAF7F1",
+        ruby: "#C23B4B",
+        "ruby-light": "#FBEAEC"
       },
       fontFamily: {
-        display: ["var(--font-newsreader)", "serif"],
-        sans: ["var(--font-plex-sans)", "sans-serif"],
+        display: ["var(--font-fraunces)", "serif"],
+        sans: ["var(--font-manrope)", "sans-serif"],
         mono: ["var(--font-plex-mono)", "monospace"]
       },
       borderRadius: {
-        sm: "2px",
-        DEFAULT: "3px",
-        md: "4px"
+        sm: "3px",
+        DEFAULT: "5px",
+        md: "6px"
       }
     }
   },

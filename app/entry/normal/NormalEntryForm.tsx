@@ -105,24 +105,24 @@ export default function NormalEntryForm() {
           const result = statusFor(val);
           return (
             <div key={i} className="flex gap-3 items-center">
-              <span className="text-paper/30 font-mono text-xs w-6 text-right">{i + 1}</span>
+              <span className="text-slate/60 font-mono text-xs w-6 text-right">{i + 1}</span>
               <input
                 className={`field-input flex-1 ${
-                  result ? (result.valid ? "border-emerald-light" : "border-rust") : ""
+                  result ? (result.valid ? "border-emerald" : "border-ruby") : ""
                 }`}
                 value={val}
                 onChange={(e) => updateEntry(i, e.target.value)}
                 placeholder="Entry number"
               />
               {result && (
-                <span className={`text-xs font-mono w-56 ${result.valid ? "text-emerald-light" : "text-rust"}`}>
+                <span className={`text-xs font-mono w-56 ${result.valid ? "text-emerald" : "text-ruby"}`}>
                   {result.status}
                 </span>
               )}
               {entryNumbers.length > 1 && (
                 <button
                   onClick={() => removeRow(i)}
-                  className="text-paper/40 hover:text-rust text-sm px-1"
+                  className="text-slate hover:text-ruby text-sm px-1"
                   aria-label="Remove row"
                 >
                   ✕
@@ -143,14 +143,14 @@ export default function NormalEntryForm() {
       </div>
 
       {submittedCount !== null && (
-        <div className="card p-5 border-emerald-light/40">
-          <p className="text-emerald-light font-mono">{submittedCount} entries recorded.</p>
+        <div className="card bg-emerald-light border-emerald/30 p-5">
+          <p className="text-emerald font-mono">{submittedCount} entries recorded.</p>
         </div>
       )}
 
       {results && submittedCount === null && (
-        <div className="card p-5 border-rust/40">
-          <p className="text-rust">Fix the flagged rows above and check again — nothing was saved yet.</p>
+        <div className="card bg-ruby-light border-ruby/30 p-5">
+          <p className="text-ruby">Fix the flagged rows above and check again — nothing was saved yet.</p>
         </div>
       )}
     </div>

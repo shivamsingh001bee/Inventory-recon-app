@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
-import { Newsreader, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Fraunces, Manrope, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
-const newsreader = Newsreader({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-newsreader"
+  weight: ["500", "600"],
+  variable: "--font-fraunces"
 });
 
-const plexSans = IBM_Plex_Sans({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-plex-sans"
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-manrope"
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -29,8 +28,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${newsreader.variable} ${plexSans.variable} ${plexMono.variable}`}>
-      <body className="bg-ink text-paper font-sans min-h-screen">
+    <html lang="en" className={`${fraunces.variable} ${manrope.variable} ${plexMono.variable}`}>
+      <body className="bg-paper text-ink font-sans min-h-screen">
         <Providers>{children}</Providers>
       </body>
     </html>

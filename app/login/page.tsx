@@ -23,19 +23,23 @@ function LoginContent() {
   }, [status, router]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <main className="min-h-screen flex items-center justify-center px-6 bg-paper">
       <div className="w-full max-w-sm">
-        <p className="field-label mb-3">Gemstone Division</p>
-        <h1 className="font-display italic text-4xl text-paper mb-2">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="w-2.5 h-2.5 rounded-full bg-sapphire" />
+          <span className="w-2.5 h-2.5 rounded-full bg-topaz" />
+          <span className="w-2.5 h-2.5 rounded-full bg-amethyst" />
+        </div>
+        <h1 className="font-display font-semibold text-4xl text-ink mb-3">
           Reconciliation Register
         </h1>
-        <p className="text-paper/50 text-sm mb-10 leading-relaxed">
+        <p className="text-slate text-sm mb-10 leading-relaxed">
           Sign in with the Google account your admin registered for you to
           record today's stock count.
         </p>
 
         {error && (
-          <div className="border border-rust/50 bg-rust/10 text-rust text-sm rounded px-4 py-3 mb-6">
+          <div className="border border-ruby/30 bg-ruby-light text-ruby text-sm rounded px-4 py-3 mb-6">
             This account isn't registered for the reconciliation register.
             Ask your admin to add you.
           </div>
