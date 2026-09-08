@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
   const bq = getBigQuery();
   const reconMonth = currentReconMonth();
 
+  // Simple duplicate check: this Lot No. must not already exist this month.
   const existingQuery = `
     SELECT lot_no
     FROM ${table("lot_entries")}
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   if (existingRows.length > 0) {
     return NextResponse.json(
-      { error: `Lot No. ${entry.lot_no} already exists in database` },
+      { error: `Lot No. ${entry.lot_no} is already present in database` },
       { status: 409 }
     );
   }
@@ -40,12 +41,11 @@ export async function POST(req: NextRequest) {
   const row = {
     entry_id: uuid(),
     lot_no: entry.lot_no,
-    no_of_pcs: entry.no_of_pcs,
-    carat_wt: entry.carat_wt,
-    entry_date: entry.entry_date,
-    comments: entry.comments ?? null,
     location: entry.location,
     gemstone: entry.gemstone,
+    no_of_pcs: entry.no_of_pcs,
+    total_carat_ct: entry.total_carat_ct,
+    comments: entry.comments ?? null,
     submitted_by: session.user?.email,
     submitted_at: new Date().toISOString(),
     recon_month: reconMonth

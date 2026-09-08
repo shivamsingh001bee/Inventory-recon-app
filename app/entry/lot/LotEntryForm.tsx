@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-const today = new Date().toISOString().slice(0, 10);
-
 export default function LotEntryForm() {
   const [gemstones, setGemstones] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -12,8 +10,7 @@ export default function LotEntryForm() {
   const [gemstone, setGemstone] = useState("");
   const [lotNo, setLotNo] = useState("");
   const [pcs, setPcs] = useState("");
-  const [caratWt, setCaratWt] = useState("");
-  const [entryDate, setEntryDate] = useState(today);
+  const [totalCaratCt, setTotalCaratCt] = useState("");
   const [comments, setComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -30,8 +27,7 @@ export default function LotEntryForm() {
   function resetForm() {
     setLotNo("");
     setPcs("");
-    setCaratWt("");
-    setEntryDate(today);
+    setTotalCaratCt("");
     setComments("");
   }
 
@@ -45,8 +41,7 @@ export default function LotEntryForm() {
         body: JSON.stringify({
           lot_no: lotNo,
           no_of_pcs: Number(pcs),
-          carat_wt: Number(caratWt),
-          entry_date: entryDate,
+          total_carat_ct: Number(totalCaratCt),
           comments: comments || undefined,
           location,
           gemstone
@@ -64,7 +59,7 @@ export default function LotEntryForm() {
     }
   }
 
-  const canSubmit = location && gemstone && lotNo && pcs && caratWt && entryDate;
+  const canSubmit = location && gemstone && lotNo && pcs && totalCaratCt;
 
   return (
     <div>
@@ -93,29 +88,20 @@ export default function LotEntryForm() {
         </div>
         <div>
           <p className="field-label">Lot No.</p>
-          <input className="field-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} />
-        </div>
-        <div>
-          <p className="field-label">Date</p>
-          <input
-            type="date"
-            className="field-input"
-            value={entryDate}
-            onChange={(e) => setEntryDate(e.target.value)}
-          />
+          <input className="field-input" value={lotNo} onChange={(e) => setLotNo(e.target.value)} placeholder="e.g. #324" />
         </div>
         <div>
           <p className="field-label">No. of Pcs</p>
           <input type="number" className="field-input" value={pcs} onChange={(e) => setPcs(e.target.value)} />
         </div>
         <div>
-          <p className="field-label">Carat Wt.</p>
+          <p className="field-label">Total Carat Ct</p>
           <input
             type="number"
             step="0.01"
             className="field-input"
-            value={caratWt}
-            onChange={(e) => setCaratWt(e.target.value)}
+            value={totalCaratCt}
+            onChange={(e) => setTotalCaratCt(e.target.value)}
           />
         </div>
       </div>

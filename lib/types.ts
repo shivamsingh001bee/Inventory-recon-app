@@ -19,8 +19,7 @@ export interface NormalEntrySubmission {
 export interface LotEntryInput {
   lot_no: string;
   no_of_pcs: number;
-  carat_wt: number;
-  entry_date: string; // yyyy-mm-dd
+  total_carat_ct: number;
   comments?: string;
   location: string;
   gemstone: string;

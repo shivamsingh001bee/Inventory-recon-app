@@ -38,17 +38,16 @@ PARTITION BY recon_month;
 
 -- 4. Lot Entry submissions.
 CREATE TABLE IF NOT EXISTS `your_project.inventory_recon.lot_entries` (
-  entry_id      STRING NOT NULL,
-  lot_no        STRING NOT NULL,
-  no_of_pcs     INT64 NOT NULL,
-  carat_wt      NUMERIC NOT NULL,
-  entry_date    DATE NOT NULL,
-  comments      STRING,
-  location      STRING NOT NULL,
-  gemstone      STRING NOT NULL,
-  submitted_by  STRING NOT NULL,
-  submitted_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  recon_month   DATE NOT NULL
+  entry_id        STRING NOT NULL,
+  lot_no          STRING NOT NULL,
+  location        STRING NOT NULL,
+  gemstone        STRING NOT NULL,
+  no_of_pcs       INT64 NOT NULL,
+  total_carat_ct  NUMERIC NOT NULL,
+  comments        STRING,
+  submitted_by    STRING NOT NULL,
+  submitted_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+  recon_month     DATE NOT NULL
 )
 PARTITION BY recon_month;
 

@@ -15,12 +15,10 @@ ALTER TABLE `mis-gempundit.inventory_recon.normal_entries`
 ALTER TABLE `mis-gempundit.inventory_recon.normal_entries`
   ALTER COLUMN category DROP NOT NULL;
 
--- 3. lot_entries: add location, drop the category requirement.
-ALTER TABLE `mis-gempundit.inventory_recon.lot_entries`
-  ADD COLUMN IF NOT EXISTS location STRING;
-
-ALTER TABLE `mis-gempundit.inventory_recon.lot_entries`
-  ALTER COLUMN category DROP NOT NULL;
+-- 3. lot_entries — SUPERSEDED. See sql/migration_03_lot_entries_redesign.sql,
+--    which drops and recreates this table with the correct field set
+--    (Location, Gemstone, Lot No., No. of Pcs, Total Carat Ct, Comments).
+--    Skip these two statements if you're applying migrations in order.
 
 -- 4. BOM check: this app does NOT create a local `bom` table. It queries
 --    your existing BOM table directly (cross-dataset, same project):

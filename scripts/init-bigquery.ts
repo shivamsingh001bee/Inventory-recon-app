@@ -55,12 +55,11 @@ async function main() {
       schema: [
         { name: "entry_id", type: "STRING", mode: "REQUIRED" },
         { name: "lot_no", type: "STRING", mode: "REQUIRED" },
-        { name: "no_of_pcs", type: "INTEGER", mode: "REQUIRED" },
-        { name: "carat_wt", type: "NUMERIC", mode: "REQUIRED" },
-        { name: "entry_date", type: "DATE", mode: "REQUIRED" },
-        { name: "comments", type: "STRING", mode: "NULLABLE" },
         { name: "location", type: "STRING", mode: "REQUIRED" },
         { name: "gemstone", type: "STRING", mode: "REQUIRED" },
+        { name: "no_of_pcs", type: "INTEGER", mode: "REQUIRED" },
+        { name: "total_carat_ct", type: "NUMERIC", mode: "REQUIRED" },
+        { name: "comments", type: "STRING", mode: "NULLABLE" },
         { name: "submitted_by", type: "STRING", mode: "REQUIRED" },
         { name: "submitted_at", type: "TIMESTAMP", mode: "REQUIRED" },
         { name: "recon_month", type: "DATE", mode: "REQUIRED" }
