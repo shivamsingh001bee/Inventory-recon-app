@@ -17,7 +17,13 @@ async function main() {
 
   const bq = new BigQuery({ projectId, credentials: JSON.parse(rawKey) });
 
-  const [dataset] = await bq.dataset(datasetId).get({ autoCreate: true });
+  // Location MUST match Final_inventory_master's dataset region (IMS_New_Version)
+  // since Reports queries both together in one job — check yours in the
+  // BigQuery console before changing this.
+  const [dataset] = await bq.dataset(datasetId).get({
+    autoCreate: true,
+    location: process.env.BIGQUERY_LOCATION || "asia-south2"
+  });
   console.log(`Dataset ready: ${dataset.id}`);
 
   const tables: Record<string, any> = {

@@ -1,8 +1,14 @@
+-- NOTE: superseded by schema_final.sql for fresh installs (this file is kept for history/reference only).
+
 -- Full schema for a fresh install. If you already have tables from an
 -- earlier version of this app, use sql/migration_02_entry_number.sql instead.
+--
+-- Location matters: this MUST match the region of Final_inventory_master
+-- (IMS_New_Version dataset) since Reports queries both together. Check your
+-- master dataset's region in the BigQuery console before running this.
 
 CREATE SCHEMA IF NOT EXISTS `your_project.inventory_recon`
-OPTIONS (location = 'US');
+OPTIONS (location = 'asia-south2');
 
 -- 1. Team members. `role` is 'member' | 'admin'.
 CREATE TABLE IF NOT EXISTS `your_project.inventory_recon.users` (

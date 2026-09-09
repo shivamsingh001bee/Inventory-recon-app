@@ -1,3 +1,5 @@
+-- NOTE: superseded by schema_final.sql for fresh installs (this file is kept for history/reference only).
+
 -- MIGRATION 03: Lot Entry redesign — matches the real sheet exactly
 -- (Location, Gemstone, Lot No., No. of Pcs, Total Carat Ct, Comments — no
 -- date field, no category). This supersedes lot_entries as created by

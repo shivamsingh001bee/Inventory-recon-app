@@ -1,3 +1,5 @@
+-- NOTE: superseded by schema_final.sql for fresh installs (this file is kept for history/reference only).
+
 -- MIGRATION: run these against mis-gempundit.inventory_recon
 -- (this is additive/altering — it does not touch your existing users or criteria rows
 --  except where noted)

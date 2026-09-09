@@ -1,3 +1,5 @@
+-- NOTE: superseded by schema_final.sql for fresh installs (this file is kept for history/reference only).
+
 -- MIGRATION 04: Monthly reconciliation reports
 -- Compares normal_entries against the real inventory master
 -- (mis-gempundit.IMS_New_Version.Final_inventory_master) and saves three
