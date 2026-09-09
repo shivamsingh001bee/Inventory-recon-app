@@ -71,7 +71,7 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
       WHERE ne.recon_month = @reconMonth
         AND NOT EXISTS (
           SELECT 1 FROM ${masterTable()} fm
-          WHERE fm.Int_mas_Inventory_ID = ne.entry_number
+          WHERE CAST(fm.Int_mas_Inventory_ID AS STRING) = ne.entry_number
         )
     `,
     params
@@ -88,13 +88,13 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
         (run_id, recon_month, run_at, run_by, inv_id, status, location, gemstone, price, full_row)
       SELECT
         @runId, @reconMonth, CURRENT_TIMESTAMP(), @runBy,
-        fm.Int_mas_Inventory_ID, fm.Final_Inventory_Status, fm.Final_Live_Location,
+        CAST(fm.Int_mas_Inventory_ID AS STRING), fm.Final_Inventory_Status, fm.Final_Live_Location,
         fm.Final_Gemstone2, SAFE_CAST(fm.Final_formula_Based_Price AS NUMERIC), TO_JSON_STRING(fm)
       FROM ${masterTable()} fm
       WHERE fm.Final_Inventory_Status != 'Out of Stock'
         AND NOT EXISTS (
           SELECT 1 FROM ${table("normal_entries")} ne
-          WHERE ne.recon_month = @reconMonth AND ne.entry_number = fm.Int_mas_Inventory_ID
+          WHERE ne.recon_month = @reconMonth AND ne.entry_number = CAST(fm.Int_mas_Inventory_ID AS STRING)
         )
     `,
     params
@@ -112,12 +112,12 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
          found_packet_no, found_by, found_at)
       SELECT
         @runId, @reconMonth, CURRENT_TIMESTAMP(), @runBy,
-        fm.Int_mas_Inventory_ID, fm.Final_Inventory_Status, fm.Final_Live_Location,
+        CAST(fm.Int_mas_Inventory_ID AS STRING), fm.Final_Inventory_Status, fm.Final_Live_Location,
         fm.Final_Gemstone2, SAFE_CAST(fm.Final_formula_Based_Price AS NUMERIC), TO_JSON_STRING(fm),
         ne.packet_no, ne.submitted_by, ne.submitted_at
       FROM ${masterTable()} fm
       JOIN ${table("normal_entries")} ne
-        ON ne.entry_number = fm.Int_mas_Inventory_ID AND ne.recon_month = @reconMonth
+        ON ne.entry_number = CAST(fm.Int_mas_Inventory_ID AS STRING) AND ne.recon_month = @reconMonth
       WHERE fm.Final_Inventory_Status = 'Out of Stock'
     `,
     params
