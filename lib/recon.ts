@@ -117,7 +117,7 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
         ne.packet_no, ne.submitted_by, ne.submitted_at
       FROM ${masterTable()} fm
       JOIN ${table("normal_entries")} ne
-        ON ne.entry_number = CAST(fm.Int_mas_Inventory_ID AS STRING) AND ne.recon_month = CAST(@reconMonth AS DATE)
+  ON ne.entry_number = CAST(fm.Int_mas_Inventory_ID AS STRING) AND ne.recon_month = CAST(@reconMonth AS DATE)
       WHERE fm.Final_Inventory_Status = 'Out of Stock'
     `,
     params
