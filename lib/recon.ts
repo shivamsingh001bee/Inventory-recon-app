@@ -1,5 +1,5 @@
 import { v4 as uuid } from "uuid";
-import { getBigQuery, table } from "./bigquery";
+import { getBigQuery, table, masterTable } from "./bigquery";
 
 export type ReconCase = "missing_from_master" | "missing_from_entries" | "out_of_stock_but_found";
 
@@ -66,8 +66,13 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
         (run_id, recon_month, run_at, run_by, entry_number, packet_no, gemstone, submitted_by, submitted_at)
       SELECT
         @runId, CAST(@reconMonth AS DATE), CURRENT_TIMESTAMP(), @runBy,
-        entry_number, packet_no, gemstone, submitted_by, submitted_at
-      FROM ${table("v_recon_missing_from_master")}
+        ne.entry_number, ne.packet_no, ne.gemstone, ne.submitted_by, ne.submitted_at
+      FROM ${table("normal_entries")} ne
+      WHERE ne.recon_month = CAST(@reconMonth AS DATE)
+        AND NOT EXISTS (
+          SELECT 1 FROM ${masterTable()} fm
+          WHERE CAST(fm.Int_mas_Inventory_ID AS STRING) = ne.entry_number
+        )
     `,
     params
   });
@@ -83,8 +88,14 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
         (run_id, recon_month, run_at, run_by, inv_id, status, location, gemstone, price, full_row)
       SELECT
         @runId, CAST(@reconMonth AS DATE), CURRENT_TIMESTAMP(), @runBy,
-        inv_id, status, location, gemstone, price, full_row
-      FROM ${table("v_recon_missing_from_entries")}
+        CAST(fm.Int_mas_Inventory_ID AS STRING), fm.Final_Inventory_Status, fm.Final_Live_Location,
+        fm.Final_Gemstone2, SAFE_CAST(fm.Final_formula_Based_Price AS NUMERIC), TO_JSON_STRING(fm)
+      FROM ${masterTable()} fm
+      WHERE fm.Final_Inventory_Status != 'Out of Stock'
+        AND NOT EXISTS (
+          SELECT 1 FROM ${table("normal_entries")} ne
+          WHERE ne.recon_month = CAST(@reconMonth AS DATE) AND ne.entry_number = CAST(fm.Int_mas_Inventory_ID AS STRING)
+        )
     `,
     params
   });
@@ -101,8 +112,13 @@ export async function runMonthlyReconciliation(runBy: string, role: string, reco
          found_packet_no, found_by, found_at)
       SELECT
         @runId, CAST(@reconMonth AS DATE), CURRENT_TIMESTAMP(), @runBy,
-        inv_id, status, location, gemstone, price, full_row, found_packet_no, found_by, found_at
-      FROM ${table("v_recon_out_of_stock_but_found")}
+        CAST(fm.Int_mas_Inventory_ID AS STRING), fm.Final_Inventory_Status, fm.Final_Live_Location,
+        fm.Final_Gemstone2, SAFE_CAST(fm.Final_formula_Based_Price AS NUMERIC), TO_JSON_STRING(fm),
+        ne.packet_no, ne.submitted_by, ne.submitted_at
+      FROM ${masterTable()} fm
+      JOIN ${table("normal_entries")} ne
+  ON ne.entry_number = CAST(fm.Int_mas_Inventory_ID AS STRING) AND ne.recon_month = CAST(@reconMonth AS DATE)
+      WHERE fm.Final_Inventory_Status = 'Out of Stock'
     `,
     params
   });
