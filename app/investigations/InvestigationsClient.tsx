@@ -440,13 +440,14 @@ export default function InvestigationsClient() {
 
             <nav className="space-y-2">
               {groups.map(([group, list]) => (
-                <details
-                  key={group}
-                  open={!!openGroups[group]}
-                  onToggle={(e) => setOpenGroups((prev) => ({ ...prev, [group]: e.currentTarget.open }))}
-                  className="group/details"
-                >
-                  <summary className="field-label mb-1 cursor-pointer select-none list-none flex items-center gap-1">
+                <details key={group} open={!!openGroups[group]} className="group/details">
+                  <summary
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+                    }}
+                    className="field-label mb-1 cursor-pointer select-none list-none flex items-center gap-1"
+                  >
                     <span className="inline-block transition-transform group-open/details:rotate-90">›</span>
                     {groupLabel(group)}
                   </summary>
