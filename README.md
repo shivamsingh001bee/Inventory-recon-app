@@ -42,6 +42,19 @@ app backed by BigQuery, deployed on Vercel.
   15 investigations currently defined (`#1.1`–`#6.2`), plus 4 placeholder
   "extra" investigations reserved for future cases, admin-only and
   inactive until real logic is written for them.
+- **Reports** — monthly reconciliation against your real inventory master
+  (`Final_inventory_master`, cross-dataset). Anyone can trigger a run; members
+  can run it once per month, admins can re-run anytime (each re-run replaces
+  that month's saved data rather than duplicating it). Three saved views per
+  month:
+  - **Missing from Master** — entered this month but not found in the master
+  - **Missing from Entries** — in the master (and not Out of Stock) but
+    nobody physically entered it this month
+  - **Out of Stock but Found** — marked Out of Stock in the master, but
+    someone entered it anyway — your main discrepancy signal
+  Case 2 and 3 have a Min/Max price filter (₹1,000 steps) against
+  `Final_formula_Based_Price`; Case 1 has no price filter since those items
+  don't exist in the master at all.
 
 **Category (under ₹2L / above ₹2L) has been removed.** Every member now has
 a single, unified workflow — no switcher, no filtering by category anywhere
@@ -128,6 +141,7 @@ app/
   entry/lot/                Lot Entry (Location + Gemstone + Lot No.)
   entry/no-pkt/             Entry where no Pkt No. (Location + Gemstone + Entry No. batch)
   investigations/           Weekly Investigations (generic, config-driven)
+  reports/                  Monthly reconciliation reports (3 cases, price filter)
   api/entries/normal/       submit — re-validates + all-or-nothing insert
   api/entries/normal/check/ validate only, no insert
   api/entries/lot/          submit + Lot No. duplicate check
@@ -137,6 +151,9 @@ app/
   api/investigations/run/    trigger all active investigations (role-gated)
   api/investigations/weeks/  list weeks that have a saved run
   api/investigations/report/ fetch one investigation's rows for a week
+  api/recon/run/            trigger the monthly reconciliation (role-gated)
+  api/recon/months/         list months that have a saved run
+  api/recon/report/         fetch a saved report's rows, with price filter
   api/criteria/             distinct gemstone + location lists
   api/summary/              live counters
 lib/
@@ -153,4 +170,11 @@ sql/
   migration_07a_investigation_views.sql     the 15 investigation views + 4 placeholder views
   migration_07b_investigation_tables.sql    derives each table from its view + seeds config data
   (older migration_02/03/04/05 files are historical only)
+  recon.ts                   the 3 reconciliation queries + run guard
+  types.ts                   shared TS types
+sql/
+  schema.sql                            full DDL for a fresh install
+  migration_02_entry_number.sql         migration for existing installs
+  migration_03_lot_entries_redesign.sql Lot Entry table redesign
+  migration_04_reconciliation_reports.sql  reconciliation report tables
 ```

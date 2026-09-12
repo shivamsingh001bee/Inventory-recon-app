@@ -72,7 +72,6 @@ export default function NoPktEntryForm() {
     reader.readAsText(file);
     e.target.value = "";
   }
-
   function updateEntry(index: number, value: string) {
     setEntryNumbers((prev) => prev.map((v, i) => (i === index ? value : v)));
     setResults(null);
@@ -175,7 +174,6 @@ export default function NoPktEntryForm() {
       </div>
 
       {csvError && <p className="text-ruby text-xs mb-3">{csvError}</p>}
-
       <div className="space-y-2 mb-4">
         {entryNumbers.map((val, i) => {
           const result = statusFor(val);
