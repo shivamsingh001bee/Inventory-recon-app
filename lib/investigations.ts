@@ -24,6 +24,20 @@ export function currentReconWeek(d: Date = new Date()): string {
   return `${y}-${m}-${day2}`;
 }
 
+/**
+ * view_name / table_name come out of the investigations config table and get
+ * interpolated straight into SQL. They're admin-managed, but interpolated
+ * identifiers are an injection surface regardless — validate before use.
+ */
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+
+function assertSafeIdentifier(name: string, field: string): string {
+  if (!SAFE_IDENTIFIER.test(name)) {
+    throw new Error(`Unsafe ${field} in investigations config: ${JSON.stringify(name)}`);
+  }
+  return name;
+}
+
 export async function listInvestigations(role: string): Promise<Investigation[]> {
   const bq = getBigQuery();
   const [rows] = await bq.query({
@@ -72,19 +86,27 @@ export async function checkRunGuard(role: string, reconWeek: string): Promise<Gu
 }
 
 /**
- * Runs every active investigation for the given week. Fully generic —
- * loops over whatever the config table currently lists, so adding a new
- * investigation never requires touching this function.
+ * Runs every active investigation for the given week.
+ *
+ * The whole thing is emitted as ONE multi-statement BigQuery script rather
+ * than 2 sequential client-side queries per investigation. The old version
+ * issued 28+ separate jobs back to back; each job costs a round trip plus
+ * creation latency, which blew past the Vercel function timeout partway
+ * through the loop and silently left later investigations unpopulated.
+ *
+ * One script = one job. Statements still execute in order server-side, and
+ * BigQuery rolls the whole script back if any statement fails, so a run is
+ * now all-or-nothing instead of half-applied.
+ *
+ * The run-log row is appended inside the script too. It used to go through
+ * the legacy streaming insert API, which pins the table's streaming buffer
+ * and makes DELETE/UPDATE on investigation_runs fail for ~90 minutes.
  */
 export async function runAllInvestigations(runBy: string, role: string, reconWeek: string): Promise<string> {
   const bq = getBigQuery();
   const runId = uuid();
 
-  // Run against ALL active investigations, not just the ones visible to
-  // this role — an admin's "Run Now" shouldn't skip member-visible cases,
-  // and a member's "Run Now" should still refresh admin-only ones too,
-  // since it's one shared weekly snapshot.
-  const [investigations] = await bq.query({
+  const [rows] = await bq.query({
     query: `
       SELECT id, display_name, view_name, table_name
       FROM ${table("investigations")}
@@ -93,30 +115,35 @@ export async function runAllInvestigations(runBy: string, role: string, reconWee
     `
   });
 
-  for (const inv of investigations as Investigation[]) {
-    await bq.query({
-      query: `DELETE FROM ${table(inv.table_name)} WHERE recon_week = CAST(@reconWeek AS DATE)`,
-      params: { reconWeek }
-    });
-    await bq.query({
-      query: `
-        INSERT INTO ${table(inv.table_name)}
-        SELECT @runId, CAST(@reconWeek AS DATE), CURRENT_TIMESTAMP(), @runBy, v.*
-        FROM ${table(inv.view_name)} v
-      `,
-      params: { runId, reconWeek, runBy }
-    });
+  const investigations = rows as Investigation[];
+  if (investigations.length === 0) {
+    throw new Error(
+      "No active investigations in the config table — nothing to run. Seed `investigations` first."
+    );
   }
 
-  await bq.dataset(process.env.BIGQUERY_DATASET!).table("investigation_runs").insert([
-    {
-      run_id: runId,
-      recon_week: reconWeek,
-      run_by: runBy,
-      run_role: role,
-      run_at: new Date().toISOString()
-    }
-  ]);
+  const statements = investigations.map((inv) => {
+    const tbl = table(assertSafeIdentifier(inv.table_name, "table_name"));
+    const view = table(assertSafeIdentifier(inv.view_name, "view_name"));
+    return [
+      `DELETE FROM ${tbl} WHERE recon_week = CAST(@reconWeek AS DATE);`,
+      `INSERT INTO ${tbl}`,
+      `SELECT @runId, CAST(@reconWeek AS DATE), CURRENT_TIMESTAMP(), @runBy, v.*`,
+      `FROM ${view} v;`
+    ].join("\n");
+  });
+
+  statements.push(
+    [
+      `INSERT INTO ${table("investigation_runs")} (run_id, recon_week, run_by, run_role, run_at)`,
+      `VALUES (@runId, CAST(@reconWeek AS DATE), @runBy, @role, CURRENT_TIMESTAMP());`
+    ].join("\n")
+  );
+
+  await bq.query({
+    query: statements.join("\n\n"),
+    params: { runId, reconWeek, runBy, role }
+  });
 
   return runId;
 }
@@ -133,7 +160,7 @@ export interface ReportRow {
 export async function fetchInvestigationReport(tableName: string, reconWeek: string): Promise<ReportRow[]> {
   const bq = getBigQuery();
   const [rows] = await bq.query({
-    query: `SELECT * FROM ${table(tableName)} WHERE recon_week = CAST(@reconWeek AS DATE)`,
+    query: `SELECT * FROM ${table(assertSafeIdentifier(tableName, "table_name"))} WHERE recon_week = CAST(@reconWeek AS DATE)`,
     params: { reconWeek }
   });
   return (rows as ReportRow[]).map((row) => {
