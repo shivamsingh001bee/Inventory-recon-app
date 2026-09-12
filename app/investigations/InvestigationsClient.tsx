@@ -251,7 +251,8 @@ export default function InvestigationsClient() {
   const selectedInvestigation = investigations.find((i) => i.id === selectedId);
   const filterColumns = selectedInvestigation?.filter_columns ?? [];
   const keyColumns = selectedInvestigation?.key_columns ?? [];
-  const canRunSelected = !!selectedInvestigation && (isAdmin || selectedInvestigation.assigned_emails.includes(email));
+  const canRunSelected =
+    !!selectedInvestigation && (isAdmin || (selectedInvestigation.assigned_emails ?? []).includes(email));
 
   const filteredRows = useMemo(() => {
     const active = Object.entries(filters).filter(([, v]) => v.trim() !== "");
@@ -451,7 +452,7 @@ export default function InvestigationsClient() {
                   </summary>
                   <div className="space-y-0.5 pl-3 mt-1">
                     {list.map((inv) => {
-                      const canRun = isAdmin || inv.assigned_emails.includes(email);
+                      const canRun = isAdmin || (inv.assigned_emails ?? []).includes(email);
                       return (
                         <div key={inv.id} className="flex items-center gap-1">
                           <button
