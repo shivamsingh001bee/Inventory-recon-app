@@ -160,7 +160,10 @@ function buildMergeStatement(inv: Investigation, viewColumns: string[]): string 
   const tbl = table(assertSafeIdentifier(inv.table_name, "table_name"));
   const view = table(assertSafeIdentifier(inv.view_name, "view_name"));
 
-  const onClause = keyCols.map((c) => `t.${c} = s.${c}`).join(" AND ");
+  // Same CAST-to-STRING defense as updateResolution's WHERE clause — makes
+  // the match immune to a key column's type differing (or drifting) between
+  // the target table and the source view, for every investigation.
+  const onClause = keyCols.map((c) => `CAST(t.${c} AS STRING) = CAST(s.${c} AS STRING)`).join(" AND ");
   const partitionBy = keyCols.join(", ");
   const updateSet = viewColumns.map((c) => `${c} = s.${c}`).join(",\n      ");
   const insertCols = ["run_id", "recon_week", "run_at", "run_by", ...viewColumns].join(", ");
@@ -397,8 +400,15 @@ export async function updateResolution(
   }
 
   const tbl = table(assertSafeIdentifier(table_name, "table_name"));
+  // Cast to STRING on both sides — key_columns can be INT64, STRING, etc.
+  // depending on the investigation, but keyValues always arrives as JS
+  // strings (built client-side via a generic unwrap()), so an untyped param
+  // is always inferred as STRING. Comparing STRING against a real INT64
+  // column without a cast fails with "No matching signature for operator =".
+  // Casting generically here fixes this for every investigation regardless
+  // of its key columns' actual types, instead of needing a type map.
   const whereClause = key_columns
-    .map((c) => `${assertSafeIdentifier(c, "key_columns")} = @key_${c}`)
+    .map((c) => `CAST(${assertSafeIdentifier(c, "key_columns")} AS STRING) = @key_${c}`)
     .join(" AND ");
 
   const params: Record<string, unknown> = {
