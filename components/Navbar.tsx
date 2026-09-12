@@ -19,9 +19,9 @@ export default function Navbar() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <nav className="flex items-center gap-6">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-y-2">
+        <div className="flex items-center gap-4 sm:gap-8">
+          <nav className="flex items-center gap-3 sm:gap-6 flex-wrap">
             {links.map((l) => {
               const active = pathname === l.href;
               return (

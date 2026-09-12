@@ -9,6 +9,9 @@ interface Investigation {
   group_number: string;
   admin_only: boolean;
   sort_order: number;
+  key_columns: string[];
+  filter_columns: string[];
+  assigned_emails: string[];
 }
 
 interface WeekOption {
@@ -17,28 +20,18 @@ interface WeekOption {
   run_at: string;
 }
 
-// Which columns each investigation can be filtered on. Deliberately a fixed
-// map rather than "filter on any column" — investigation tables carry a lot
-// of noise columns (run_id, full_row JSON blobs, etc.) that aren't useful
-// filter targets, so this is an allowlist per investigation id.
-const FILTERABLE_COLUMNS: Record<string, string[]> = {
-  "1_1": ["missing_number"],
-  "1_2": ["missing_number"],
-  "2": ["missing_number"],
-  "3": ["Invoice_ID"],
-  "4_1": ["In_out_Order_Number", "Int_mas_Inventory_ID"],
-  "4_2": ["In_out_Order_Number", "Int_mas_Inventory_ID"],
-  "4_3": ["Order_ID"],
-  "4_4": ["inv_id"],
-  "5_1": ["Int_mas_Inventory_ID", "Order_ID", "Ex_Sku", "Invoice_ID"],
-  "5_3": ["Int_mas_Inventory_ID"],
-  "5_4": ["entry_number"],
-  "5_5": ["Lot_ID"],
-  "6_1": ["Sold_Inv_ID", "Sold_GP_ID"],
-  "6_2": ["Sold_Gemstone2", "BOM_Gemstone2", "BOM_Inv_ID"]
-};
+interface ResolutionState {
+  solved_date: string;
+  action: string;
+  reason: string;
+  comment: string;
+}
+
+const RESOLUTION_COLS: (keyof ResolutionState)[] = ["solved_date", "action", "reason", "comment"];
+const HIDDEN_COLS = ["updated_by", "updated_at"]; // audit trail — not shown, still stored
 
 const PAGE_SIZE = 50;
+const MAX_IMPORT_ROWS = 200;
 
 function unwrap(val: unknown): string {
   if (val === null || val === undefined) return "";
@@ -59,11 +52,12 @@ function groupLabel(group: string): string {
   return group === "extra" ? "Admin" : `Group ${group}`;
 }
 
-/** Quotes a CSV field only when it needs it, escaping embedded quotes. */
+function rowKey(row: Record<string, unknown>, keyColumns: string[]): string {
+  return keyColumns.map((c) => unwrap(row[c])).join("__");
+}
+
 function csvField(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
+  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;
 }
 
@@ -81,9 +75,52 @@ function downloadCsv(filename: string, columns: string[], rows: Record<string, u
   URL.revokeObjectURL(url);
 }
 
+/** Minimal RFC4180 CSV parser: handles quoted fields, escaped quotes, commas and newlines inside quotes. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
+
 export default function InvestigationsClient() {
   const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
+  const role = (session?.user as any)?.role ?? "member";
+  const email = session?.user?.email ?? "";
   const isAdmin = role === "admin";
 
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
@@ -95,12 +132,18 @@ export default function InvestigationsClient() {
 
   const [running, setRunning] = useState(false);
   const [runMessage, setRunMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Per-investigation individual-run state, keyed by investigation id.
   const [rowRunning, setRowRunning] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+
+  // Inline edits, keyed by rowKey(row, keyColumns) -> partial ResolutionState.
+  const [edits, setEdits] = useState<Record<string, Partial<ResolutionState>>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{ key: string; text: string } | null>(null);
+
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ matched: number; unmatched: number } | null>(null);
 
   useEffect(() => {
     fetch("/api/investigations/list")
@@ -138,6 +181,8 @@ export default function InvestigationsClient() {
     setLoading(true);
     setFilters({});
     setPage(1);
+    setEdits({});
+    setImportResult(null);
     fetch(`/api/investigations/report?id=${selectedId}&week=${selectedWeek}`)
       .then((r) => r.json())
       .then((data) => setRows(data.rows ?? []))
@@ -177,9 +222,7 @@ export default function InvestigationsClient() {
       } else {
         setRunMessage({ type: "success", text: `${data.displayName} was re-run.` });
         await refreshWeeks();
-        if (id === selectedId) {
-          setSelectedWeek(data.reconWeek);
-        }
+        if (id === selectedId) setSelectedWeek(data.reconWeek);
       }
     } finally {
       setRowRunning(null);
@@ -195,16 +238,19 @@ export default function InvestigationsClient() {
     return Array.from(byGroup.entries());
   }, [investigations]);
 
-  const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-  const filterColumns = FILTERABLE_COLUMNS[selectedId] ?? [];
+  const allColumns = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const dataColumns = allColumns.filter(
+    (c) => !RESOLUTION_COLS.includes(c as keyof ResolutionState) && !HIDDEN_COLS.includes(c)
+  );
   const selectedInvestigation = investigations.find((i) => i.id === selectedId);
+  const filterColumns = selectedInvestigation?.filter_columns ?? [];
+  const keyColumns = selectedInvestigation?.key_columns ?? [];
+  const canRunSelected = !!selectedInvestigation && (isAdmin || selectedInvestigation.assigned_emails.includes(email));
 
   const filteredRows = useMemo(() => {
-    const activeFilters = Object.entries(filters).filter(([, v]) => v.trim() !== "");
-    if (activeFilters.length === 0) return rows;
-    return rows.filter((row) =>
-      activeFilters.every(([col, val]) => unwrap(row[col]).toLowerCase().includes(val.toLowerCase()))
-    );
+    const active = Object.entries(filters).filter(([, v]) => v.trim() !== "");
+    if (active.length === 0) return rows;
+    return rows.filter((row) => active.every(([col, val]) => unwrap(row[col]).toLowerCase().includes(val.toLowerCase())));
   }, [rows, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
@@ -217,15 +263,145 @@ export default function InvestigationsClient() {
   }
 
   function handleExport() {
-    if (columns.length === 0) return;
+    if (allColumns.length === 0) return;
+    const exportCols = [...dataColumns, ...RESOLUTION_COLS];
     const filename = `${selectedInvestigation?.display_name ?? selectedId}_${selectedWeek}.csv`.replace(/\s+/g, "_");
-    downloadCsv(filename, columns, filteredRows);
+    downloadCsv(filename, exportCols, filteredRows);
+  }
+
+  function fieldValue(row: Record<string, unknown>, key: string, field: keyof ResolutionState): string {
+    const edit = edits[key];
+    if (edit && field in edit) return edit[field] ?? "";
+    return unwrap(row[field]);
+  }
+
+  function handleFieldChange(key: string, field: keyof ResolutionState, value: string) {
+    setEdits((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+    setRowError(null);
+  }
+
+  async function handleSaveRow(row: Record<string, unknown>) {
+    if (!selectedInvestigation || keyColumns.length === 0) return;
+    const key = rowKey(row, keyColumns);
+    const keyValues: Record<string, string> = {};
+    for (const c of keyColumns) keyValues[c] = unwrap(row[c]);
+
+    const payload = {
+      id: selectedInvestigation.id,
+      keyValues,
+      solved_date: fieldValue(row, key, "solved_date") || null,
+      action: fieldValue(row, key, "action") || null,
+      reason: fieldValue(row, key, "reason") || null,
+      comment: fieldValue(row, key, "comment") || null
+    };
+
+    setSavingKey(key);
+    setRowError(null);
+    try {
+      const res = await fetch("/api/investigations/resolution", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRowError({ key, text: data.error ?? "Save failed" });
+        return;
+      }
+      setRows((prev) =>
+        prev.map((r) =>
+          rowKey(r, keyColumns) === key
+            ? { ...r, solved_date: payload.solved_date, action: payload.action, reason: payload.reason, comment: payload.comment }
+            : r
+        )
+      );
+      setEdits((prev) => {
+        const { [key]: _, ...rest } = prev;
+        return rest;
+      });
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  function handleImportClick() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".csv,text/csv";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file || !selectedInvestigation) return;
+      const text = await file.text();
+      const parsed = parseCsv(text);
+      if (parsed.length < 2) {
+        setRunMessage({ type: "error", text: "CSV has no data rows." });
+        return;
+      }
+      const header = parsed[0].map((h) => h.trim());
+      const dataRows = parsed.slice(1);
+
+      const missingKeyCols = keyColumns.filter((c) => !header.includes(c));
+      if (missingKeyCols.length > 0) {
+        setRunMessage({
+          type: "error",
+          text: `CSV is missing key column(s): ${missingKeyCols.join(", ")}. Export first to get the right format.`
+        });
+        return;
+      }
+      if (dataRows.length > MAX_IMPORT_ROWS) {
+        setRunMessage({ type: "error", text: `Import is limited to ${MAX_IMPORT_ROWS} rows (file has ${dataRows.length}).` });
+        return;
+      }
+
+      const idx = (name: string) => header.indexOf(name);
+      const importRows = dataRows
+        .filter((r) => r.length > 1 || r[0] !== "")
+        .map((r) => {
+          const keyValues: Record<string, string> = {};
+          for (const c of keyColumns) keyValues[c] = r[idx(c)] ?? "";
+          return {
+            keyValues,
+            fields: {
+              solved_date: idx("solved_date") >= 0 ? r[idx("solved_date")]?.trim() || null : null,
+              action: idx("action") >= 0 ? r[idx("action")]?.trim() || null : null,
+              reason: idx("reason") >= 0 ? r[idx("reason")]?.trim() || null : null,
+              comment: idx("comment") >= 0 ? r[idx("comment")]?.trim() || null : null
+            }
+          };
+        });
+
+      setImporting(true);
+      setRunMessage(null);
+      setImportResult(null);
+      try {
+        const res = await fetch("/api/investigations/resolution/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: selectedInvestigation.id, rows: importRows })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setRunMessage({ type: "error", text: data.error ?? "Import failed" });
+        } else {
+          setImportResult({ matched: data.matched, unmatched: data.unmatched?.length ?? 0 });
+          // Refresh current view so saved values show immediately.
+          setLoading(true);
+          fetch(`/api/investigations/report?id=${selectedInvestigation.id}&week=${selectedWeek}`)
+            .then((r) => r.json())
+            .then((d) => setRows(d.rows ?? []))
+            .finally(() => setLoading(false));
+        }
+      } finally {
+        setImporting(false);
+      }
+    };
+    input.click();
   }
 
   return (
     <div>
-      <div className="card p-5 mb-8 flex items-center justify-between flex-wrap gap-4">
-        <p className="text-ink font-medium">Run this week's investigations</p>
+      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <p className="text-ink font-medium text-sm sm:text-base">Run this week's investigations</p>
         <button onClick={handleRun} disabled={running} className="btn-primary whitespace-nowrap">
           {running ? "Running…" : "Run Now"}
         </button>
@@ -233,7 +409,7 @@ export default function InvestigationsClient() {
 
       {runMessage && (
         <div
-          className={`card p-4 mb-8 ${
+          className={`card p-3 mb-6 ${
             runMessage.type === "error" ? "bg-ruby-light border-ruby/30" : "bg-emerald-light border-emerald/30"
           }`}
         >
@@ -244,14 +420,10 @@ export default function InvestigationsClient() {
       {weeks.length === 0 ? (
         <div className="card p-8 text-center text-slate">No investigations have been run yet — click Run Now to start.</div>
       ) : (
-        <div className="flex gap-8">
-          <aside className="w-56 shrink-0">
-            <p className="field-label mb-2">Week</p>
-            <select
-              className="field-input mb-6"
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(e.target.value)}
-            >
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          <aside className="w-full md:w-56 shrink-0">
+            <p className="field-label mb-1.5">Week</p>
+            <select className="field-input mb-4" value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
               {weeks.map((w) => (
                 <option key={w.recon_week} value={w.recon_week}>
                   {formatDate(w.recon_week)}
@@ -259,66 +431,88 @@ export default function InvestigationsClient() {
               ))}
             </select>
 
-            <nav className="space-y-5">
+            <nav className="space-y-2">
               {groups.map(([group, list]) => (
-                <div key={group}>
-                  <p className="field-label mb-2">{groupLabel(group)}</p>
-                  <div className="space-y-1">
-                    {list.map((inv) => (
-                      <div key={inv.id} className="flex items-center gap-1 group">
-                        <button
-                          onClick={() => setSelectedId(inv.id)}
-                          className={`flex-1 text-left text-sm px-2.5 py-1.5 rounded transition-colors truncate ${
-                            selectedId === inv.id ? "bg-sapphire/10 text-sapphire font-medium" : "text-slate hover:text-ink"
-                          }`}
-                        >
-                          {inv.display_name}
-                        </button>
-                        {isAdmin && (
+                <details key={group} open className="group/details">
+                  <summary className="field-label mb-1 cursor-pointer select-none list-none flex items-center gap-1">
+                    <span className="inline-block transition-transform group-open/details:rotate-90">›</span>
+                    {groupLabel(group)}
+                  </summary>
+                  <div className="space-y-0.5 pl-3 mt-1">
+                    {list.map((inv) => {
+                      const canRun = isAdmin || inv.assigned_emails.includes(email);
+                      return (
+                        <div key={inv.id} className="flex items-center gap-1">
                           <button
-                            onClick={() => handleRunOne(inv.id)}
-                            disabled={rowRunning === inv.id}
-                            title={`Run only ${inv.display_name}`}
-                            className="shrink-0 text-[11px] px-1.5 py-1 rounded text-slate hover:text-sapphire hover:bg-sapphire/10 transition-colors disabled:opacity-40"
+                            onClick={() => setSelectedId(inv.id)}
+                            className={`flex-1 text-left text-sm px-2 py-1 rounded transition-colors truncate ${
+                              selectedId === inv.id ? "bg-sapphire/10 text-sapphire font-medium" : "text-slate hover:text-ink"
+                            }`}
                           >
-                            {rowRunning === inv.id ? "…" : "Run"}
+                            {inv.display_name}
                           </button>
-                        )}
-                      </div>
-                    ))}
+                          {canRun && (
+                            <button
+                              onClick={() => handleRunOne(inv.id)}
+                              disabled={rowRunning === inv.id}
+                              title={`Run only ${inv.display_name}`}
+                              className="shrink-0 text-[11px] px-1.5 py-1 rounded text-slate hover:text-sapphire hover:bg-sapphire/10 transition-colors disabled:opacity-40"
+                            >
+                              {rowRunning === inv.id ? "…" : "Run"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </details>
               ))}
             </nav>
           </aside>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h2 className="font-display font-semibold text-xl text-ink">
+            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+              <h2 className="font-display font-semibold text-lg sm:text-xl text-ink">
                 {selectedInvestigation?.display_name ?? ""}
               </h2>
-              <div className="flex items-center gap-2">
-                {isAdmin && selectedId && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {canRunSelected && selectedId && (
                   <button
                     onClick={() => handleRunOne(selectedId)}
                     disabled={rowRunning === selectedId}
-                    className="btn-ghost whitespace-nowrap"
+                    className="btn-ghost whitespace-nowrap text-sm px-3 py-1.5"
                   >
                     {rowRunning === selectedId ? "Running…" : "Run this investigation"}
                   </button>
                 )}
                 <button
+                  onClick={handleImportClick}
+                  disabled={importing || !selectedInvestigation}
+                  className="btn-ghost whitespace-nowrap text-sm px-3 py-1.5 disabled:opacity-40"
+                >
+                  {importing ? "Importing…" : "Import CSV"}
+                </button>
+                <button
                   onClick={handleExport}
                   disabled={filteredRows.length === 0}
-                  className="btn-ghost whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-ghost whitespace-nowrap text-sm px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Export CSV
                 </button>
               </div>
             </div>
 
+            {importResult && (
+              <div className="card p-3 mb-4 bg-emerald-light border-emerald/30">
+                <p className="text-emerald text-sm">
+                  {importResult.matched} row(s) updated
+                  {importResult.unmatched > 0 ? `, ${importResult.unmatched} row(s) had no matching record` : ""}.
+                </p>
+              </div>
+            )}
+
             {filterColumns.length > 0 && rows.length > 0 && (
-              <div className="flex flex-wrap gap-3 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {filterColumns.map((col) => (
                   <input
                     key={col}
@@ -326,7 +520,7 @@ export default function InvestigationsClient() {
                     placeholder={`Filter ${col}`}
                     value={filters[col] ?? ""}
                     onChange={(e) => handleFilterChange(col, e.target.value)}
-                    className="field-input w-52"
+                    className="field-input w-full sm:w-48"
                   />
                 ))}
               </div>
@@ -340,40 +534,99 @@ export default function InvestigationsClient() {
               <div className="card p-8 text-center text-slate">No rows match the current filters.</div>
             ) : (
               <>
-                <div className="card overflow-auto max-h-[65vh]">
+                <div className="card overflow-auto max-h-[65vh] -webkit-overflow-scrolling-touch">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-paper z-10">
                       <tr className="border-b border-line text-left">
-                        {columns.map((col) => (
-                          <th key={col} className="field-label px-4 py-3 mb-0 whitespace-nowrap">
+                        {dataColumns.map((col, i) => (
+                          <th
+                            key={col}
+                            className={`field-label px-4 py-3 mb-0 whitespace-nowrap ${
+                              i === 0 ? "sticky left-0 bg-paper z-20" : ""
+                            }`}
+                          >
                             {col}
                           </th>
                         ))}
+                        <th className="field-label px-4 py-3 mb-0 whitespace-nowrap">Solved Date</th>
+                        <th className="field-label px-4 py-3 mb-0 whitespace-nowrap">Action</th>
+                        <th className="field-label px-4 py-3 mb-0 whitespace-nowrap">Reason</th>
+                        <th className="field-label px-4 py-3 mb-0 whitespace-nowrap">Comment</th>
+                        <th className="field-label px-4 py-3 mb-0 whitespace-nowrap"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pageRows.map((row, i) => (
-                        <tr key={i} className="border-b border-line last:border-0">
-                          {columns.map((col) => {
-                            const raw = unwrap(row[col]);
-                            const isLong = raw.length > 60;
-                            return (
-                              <td
-                                key={col}
-                                className="px-4 py-3 text-ink font-mono text-xs max-w-xs truncate"
-                                title={isLong ? raw : undefined}
+                      {pageRows.map((row, i) => {
+                        const key = rowKey(row, keyColumns);
+                        const hasEdit = !!edits[key];
+                        const isSaving = savingKey === key;
+                        return (
+                          <tr key={key || i} className="border-b border-line last:border-0 align-top">
+                            {dataColumns.map((col, ci) => {
+                              const raw = unwrap(row[col]);
+                              const isLong = raw.length > 60;
+                              return (
+                                <td
+                                  key={col}
+                                  className={`px-4 py-2.5 text-ink font-mono text-xs max-w-xs truncate ${
+                                    ci === 0 ? "sticky left-0 bg-surface z-[5]" : ""
+                                  }`}
+                                  title={isLong ? raw : undefined}
+                                >
+                                  {raw}
+                                </td>
+                              );
+                            })}
+                            <td className="px-2 py-2">
+                              <input
+                                type="date"
+                                value={fieldValue(row, key, "solved_date")}
+                                onChange={(e) => handleFieldChange(key, "solved_date", e.target.value)}
+                                className="field-input py-1.5 text-xs w-36"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                type="text"
+                                value={fieldValue(row, key, "action")}
+                                onChange={(e) => handleFieldChange(key, "action", e.target.value)}
+                                className="field-input py-1.5 text-xs w-32"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                type="text"
+                                value={fieldValue(row, key, "reason")}
+                                onChange={(e) => handleFieldChange(key, "reason", e.target.value)}
+                                className="field-input py-1.5 text-xs w-36"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <input
+                                type="text"
+                                value={fieldValue(row, key, "comment")}
+                                onChange={(e) => handleFieldChange(key, "comment", e.target.value)}
+                                className="field-input py-1.5 text-xs w-36"
+                              />
+                            </td>
+                            <td className="px-2 py-2">
+                              <button
+                                onClick={() => handleSaveRow(row)}
+                                disabled={!hasEdit || isSaving}
+                                className="btn-primary text-xs px-2.5 py-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
                               >
-                                {raw}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
+                                {isSaving ? "…" : "Save"}
+                              </button>
+                              {rowError?.key === key && <p className="text-ruby text-[11px] mt-1 max-w-[8rem]">{rowError.text}</p>}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between mt-4 text-sm text-slate">
+                <div className="flex items-center justify-between mt-4 text-sm text-slate flex-wrap gap-2">
                   <span>
                     Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredRows.length)} of{" "}
                     {filteredRows.length}
