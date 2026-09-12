@@ -18,7 +18,13 @@ export function getBigQuery(): BigQuery {
 
   client = new BigQuery({
     projectId: process.env.GCP_PROJECT_ID,
-    credentials
+    credentials,
+    // Pinned explicitly. Location inference is per-job and only works when
+    // every referenced dataset resolves cleanly; a multi-statement script
+    // spanning inventory_recon + IMS_New_Version + mtd_orders is exactly the
+    // case where inference gets it wrong and the job dies with "Not found:
+    // Dataset" despite the dataset plainly existing.
+    location: process.env.BIGQUERY_LOCATION || "asia-south2"
   });
 
   return client;
