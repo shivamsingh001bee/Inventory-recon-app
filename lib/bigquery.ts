@@ -24,7 +24,19 @@ export function getBigQuery(): BigQuery {
     // spanning inventory_recon + IMS_New_Version + mtd_orders is exactly the
     // case where inference gets it wrong and the job dies with "Not found:
     // Dataset" despite the dataset plainly existing.
-    location: process.env.BIGQUERY_LOCATION || "asia-south2"
+    location: process.env.BIGQUERY_LOCATION || "asia-south2",
+    // Some IMS_New_Version tables (BOM / BOM_Prior_Date) are external tables
+    // backed by a live Google Sheet, not native BQ storage. Reading through
+    // those requires the Drive scope on top of the default BigQuery scope —
+    // without it BigQuery itself returns "Permission denied while getting
+    // Drive credentials" even when the service account's IAM roles and the
+    // sheet's sharing are both correct. The service account (its
+    // client_email, see the Sheet's share settings) also still needs to be
+    // shared as a Viewer on each such sheet; this scope alone isn't enough.
+    scopes: [
+      "https://www.googleapis.com/auth/bigquery",
+      "https://www.googleapis.com/auth/drive.readonly"
+    ]
   });
 
   return client;
