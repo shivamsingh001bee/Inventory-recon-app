@@ -147,6 +147,7 @@ export default function InvestigationsClient() {
   const [importResult, setImportResult] = useState<{ matched: number; unmatched: number } | null>(null);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     fetch("/api/investigations/list")
@@ -407,16 +408,9 @@ export default function InvestigationsClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-        <p className="text-ink font-medium text-sm sm:text-base">Run this week's investigations</p>
-        <button onClick={handleRun} disabled={running} className="btn-primary whitespace-nowrap">
-          {running ? "Running…" : "Run Now"}
-        </button>
-      </div>
-
       {runMessage && (
         <div
-          className={`card p-3 mb-6 ${
+          className={`card p-3 mb-4 ${
             runMessage.type === "error" ? "bg-ruby-light border-ruby/30" : "bg-emerald-light border-emerald/30"
           }`}
         >
@@ -425,63 +419,85 @@ export default function InvestigationsClient() {
       )}
 
       {weeks.length === 0 ? (
-        <div className="card p-8 text-center text-slate">No investigations have been run yet — click Run Now to start.</div>
+        <div className="card p-8 text-center text-slate">
+          <p className="mb-3">No investigations have been run yet.</p>
+          <button onClick={handleRun} disabled={running} className="btn-primary">
+            {running ? "Running…" : "Run Now"}
+          </button>
+        </div>
       ) : (
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-          <aside className="w-full md:w-56 shrink-0">
-            <p className="field-label mb-1.5">Week</p>
-            <select className="field-input mb-4" value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
-              {weeks.map((w) => (
-                <option key={w.recon_week} value={w.recon_week}>
-                  {formatDate(w.recon_week)}
-                </option>
-              ))}
-            </select>
+        <div className="flex flex-col md:flex-row gap-0 md:gap-4">
+          <div className="flex md:flex-col items-center md:items-stretch gap-2 md:gap-0 mb-2 md:mb-0">
+            <button
+              onClick={() => setSidebarOpen((o) => !o)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              className="shrink-0 h-8 w-8 flex items-center justify-center text-slate hover:text-ink border border-line rounded bg-surface transition-colors"
+            >
+              {sidebarOpen ? "‹" : "›"}
+            </button>
+          </div>
 
-            <nav className="space-y-2">
-              {groups.map(([group, list]) => (
-                <details key={group} open={!!openGroups[group]} className="group/details">
-                  <summary
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
-                    }}
-                    className="field-label mb-1 cursor-pointer select-none list-none flex items-center gap-1"
-                  >
-                    <span className="inline-block transition-transform group-open/details:rotate-90">›</span>
-                    {groupLabel(group)}
-                  </summary>
-                  <div className="space-y-0.5 pl-3 mt-1">
-                    {list.map((inv) => {
-                      const canRun = isAdmin || (inv.assigned_emails ?? []).includes(email);
-                      return (
-                        <div key={inv.id} className="flex items-center gap-1">
-                          <button
-                            onClick={() => setSelectedId(inv.id)}
-                            className={`flex-1 text-left text-sm px-2 py-1 rounded transition-colors truncate ${
-                              selectedId === inv.id ? "bg-sapphire/10 text-sapphire font-medium" : "text-slate hover:text-ink"
-                            }`}
-                          >
-                            {inv.display_name}
-                          </button>
-                          {canRun && (
+          {sidebarOpen && (
+            <aside className="w-full md:w-56 shrink-0 mb-4 md:mb-0">
+              <p className="text-ink font-medium text-sm mb-2">Run this week's investigations</p>
+              <button onClick={handleRun} disabled={running} className="btn-primary w-full mb-4">
+                {running ? "Running…" : "Run Now"}
+              </button>
+
+              <p className="field-label mb-1.5">Week</p>
+              <select className="field-input mb-4" value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
+                {weeks.map((w) => (
+                  <option key={w.recon_week} value={w.recon_week}>
+                    {formatDate(w.recon_week)}
+                  </option>
+                ))}
+              </select>
+
+              <nav className="space-y-2">
+                {groups.map(([group, list]) => (
+                  <details key={group} open={!!openGroups[group]} className="group/details">
+                    <summary
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+                      }}
+                      className="field-label mb-1 cursor-pointer select-none list-none flex items-center gap-1"
+                    >
+                      <span className="inline-block transition-transform group-open/details:rotate-90">›</span>
+                      {groupLabel(group)}
+                    </summary>
+                    <div className="space-y-0.5 pl-3 mt-1">
+                      {list.map((inv) => {
+                        const canRun = isAdmin || (inv.assigned_emails ?? []).includes(email);
+                        return (
+                          <div key={inv.id} className="flex items-center gap-1">
                             <button
-                              onClick={() => handleRunOne(inv.id)}
-                              disabled={rowRunning === inv.id}
-                              title={`Run only ${inv.display_name}`}
-                              className="shrink-0 text-[11px] px-1.5 py-1 rounded text-slate hover:text-sapphire hover:bg-sapphire/10 transition-colors disabled:opacity-40"
+                              onClick={() => setSelectedId(inv.id)}
+                              className={`flex-1 text-left text-sm px-2 py-1 rounded transition-colors truncate ${
+                                selectedId === inv.id ? "bg-sapphire/10 text-sapphire font-medium" : "text-slate hover:text-ink"
+                              }`}
                             >
-                              {rowRunning === inv.id ? "…" : "Run"}
+                              {inv.display_name}
                             </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </details>
-              ))}
-            </nav>
-          </aside>
+                            {canRun && (
+                              <button
+                                onClick={() => handleRunOne(inv.id)}
+                                disabled={rowRunning === inv.id}
+                                title={`Run only ${inv.display_name}`}
+                                className="shrink-0 text-[11px] px-1.5 py-1 rounded text-slate hover:text-sapphire hover:bg-sapphire/10 transition-colors disabled:opacity-40"
+                              >
+                                {rowRunning === inv.id ? "…" : "Run"}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+              </nav>
+            </aside>
+          )}
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">

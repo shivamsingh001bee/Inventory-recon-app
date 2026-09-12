@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SearchableSelect from "@/components/SearchableSelect";
 
 export default function LotEntryForm() {
   const [gemstones, setGemstones] = useState<string[]>([]);
@@ -66,25 +67,11 @@ export default function LotEntryForm() {
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <p className="field-label">Location</p>
-          <select className="field-input" value={location} onChange={(e) => setLocation(e.target.value)}>
-            <option value="">Select…</option>
-            {locations.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect value={location} onChange={setLocation} options={locations} placeholder="Search location…" />
         </div>
         <div>
           <p className="field-label">Gemstone</p>
-          <select className="field-input" value={gemstone} onChange={(e) => setGemstone(e.target.value)}>
-            <option value="">Select…</option>
-            {gemstones.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect value={gemstone} onChange={setGemstone} options={gemstones} placeholder="Search gemstone…" />
         </div>
         <div>
           <p className="field-label">Lot No.</p>

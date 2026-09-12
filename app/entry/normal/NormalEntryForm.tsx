@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import SearchableSelect from "@/components/SearchableSelect";
 
 interface RowResult {
   entry_number: string;
@@ -128,21 +129,15 @@ export default function NormalEntryForm() {
         </div>
         <div>
           <p className="field-label">Gemstone</p>
-          <select
-            className="field-input"
+          <SearchableSelect
             value={gemstone}
-            onChange={(e) => {
-              setGemstone(e.target.value);
+            onChange={(v) => {
+              setGemstone(v);
               setResults(null);
             }}
-          >
-            <option value="">Select…</option>
-            {gemstones.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+            options={gemstones}
+            placeholder="Search gemstone…"
+          />
         </div>
       </div>
 

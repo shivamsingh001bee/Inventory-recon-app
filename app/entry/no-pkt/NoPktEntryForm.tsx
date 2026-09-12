@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import SearchableSelect from "@/components/SearchableSelect";
 
 interface RowResult {
   entry_number: string;
@@ -118,39 +119,27 @@ export default function NoPktEntryForm() {
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div>
           <p className="field-label">Location</p>
-          <select
-            className="field-input"
+          <SearchableSelect
             value={location}
-            onChange={(e) => {
-              setLocation(e.target.value);
+            onChange={(v) => {
+              setLocation(v);
               setResults(null);
             }}
-          >
-            <option value="">Select…</option>
-            {locations.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
+            options={locations}
+            placeholder="Search location…"
+          />
         </div>
         <div>
           <p className="field-label">Gemstone</p>
-          <select
-            className="field-input"
+          <SearchableSelect
             value={gemstone}
-            onChange={(e) => {
-              setGemstone(e.target.value);
+            onChange={(v) => {
+              setGemstone(v);
               setResults(null);
             }}
-          >
-            <option value="">Select…</option>
-            {gemstones.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+            options={gemstones}
+            placeholder="Search gemstone…"
+          />
         </div>
       </div>
 
