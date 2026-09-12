@@ -52,7 +52,8 @@ function groupLabel(group: string): string {
   return group === "extra" ? "Admin" : `Group ${group}`;
 }
 
-function rowKey(row: Record<string, unknown>, keyColumns: string[]): string {
+function rowKey(row: Record<string, unknown>, keyColumns: string[], fallbackIndex: number): string {
+  if (keyColumns.length === 0) return `__row_${fallbackIndex}`;
   return keyColumns.map((c) => unwrap(row[c])).join("__");
 }
 
@@ -145,13 +146,18 @@ export default function InvestigationsClient() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ matched: number; unmatched: number } | null>(null);
 
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     fetch("/api/investigations/list")
       .then((r) => r.json())
       .then((data) => {
         const list: Investigation[] = data.investigations ?? [];
         setInvestigations(list);
-        if (list.length > 0) setSelectedId(list[0].id);
+        if (list.length > 0) {
+          setSelectedId(list[0].id);
+          setOpenGroups({ [list[0].group_number]: true });
+        }
       });
   }, []);
 
@@ -282,7 +288,7 @@ export default function InvestigationsClient() {
 
   async function handleSaveRow(row: Record<string, unknown>) {
     if (!selectedInvestigation || keyColumns.length === 0) return;
-    const key = rowKey(row, keyColumns);
+    const key = rowKey(row, keyColumns, 0);
     const keyValues: Record<string, string> = {};
     for (const c of keyColumns) keyValues[c] = unwrap(row[c]);
 
@@ -310,7 +316,7 @@ export default function InvestigationsClient() {
       }
       setRows((prev) =>
         prev.map((r) =>
-          rowKey(r, keyColumns) === key
+          rowKey(r, keyColumns, 0) === key
             ? { ...r, solved_date: payload.solved_date, action: payload.action, reason: payload.reason, comment: payload.comment }
             : r
         )
@@ -400,7 +406,7 @@ export default function InvestigationsClient() {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
         <p className="text-ink font-medium text-sm sm:text-base">Run this week's investigations</p>
         <button onClick={handleRun} disabled={running} className="btn-primary whitespace-nowrap">
           {running ? "Running…" : "Run Now"}
@@ -433,7 +439,12 @@ export default function InvestigationsClient() {
 
             <nav className="space-y-2">
               {groups.map(([group, list]) => (
-                <details key={group} open className="group/details">
+                <details
+                  key={group}
+                  open={!!openGroups[group]}
+                  onToggle={(e) => setOpenGroups((prev) => ({ ...prev, [group]: e.currentTarget.open }))}
+                  className="group/details"
+                >
                   <summary className="field-label mb-1 cursor-pointer select-none list-none flex items-center gap-1">
                     <span className="inline-block transition-transform group-open/details:rotate-90">›</span>
                     {groupLabel(group)}
@@ -502,6 +513,15 @@ export default function InvestigationsClient() {
               </div>
             </div>
 
+            {selectedInvestigation && keyColumns.length === 0 && (
+              <div className="card p-3 mb-4 bg-ruby-light border-ruby/30">
+                <p className="text-ruby text-sm">
+                  No key columns configured for this investigation — Save, Import, and Run are disabled until an
+                  admin sets `key_columns` in the investigations config table.
+                </p>
+              </div>
+            )}
+
             {importResult && (
               <div className="card p-3 mb-4 bg-emerald-light border-emerald/30">
                 <p className="text-emerald text-sm">
@@ -557,7 +577,7 @@ export default function InvestigationsClient() {
                     </thead>
                     <tbody>
                       {pageRows.map((row, i) => {
-                        const key = rowKey(row, keyColumns);
+                        const key = rowKey(row, keyColumns, (currentPage - 1) * PAGE_SIZE + i);
                         const hasEdit = !!edits[key];
                         const isSaving = savingKey === key;
                         return (

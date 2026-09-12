@@ -5,7 +5,7 @@ export type EntryStatus =
   | "Blank Inventory"
   | "Invalid No - Same as Packet No"
   | "Invalid Inventory No - More than 6 Digits"
-  | "Invalid Inventory No - 3 Digit Not Allowed"
+  | "Invalid Inventory No - Not 94 or 800"
   | "Invalid Inventory No - Duplicate"
   | "Invalid Inventory No - Already Present in BOM"
   | "Invalid Inventory No - Already Saved in Database"
@@ -79,8 +79,8 @@ export async function validateNormalEntries(
       status = "Invalid No - Same as Packet No";
     } else if (id.length > 6) {
       status = "Invalid Inventory No - More than 6 Digits";
-    } else if (id.length === 3 && !id.startsWith("800") && !id.startsWith("94")) {
-      status = "Invalid Inventory No - 3 Digit Not Allowed";
+    } else if (id.length <= 3 && id !== "94" && id !== "800") {
+      status = "Invalid Inventory No - Not 94 or 800";
     } else if (count > 1) {
       status = "Invalid Inventory No - Duplicate";
     } else if (bomMap.has(id) && bomMap.get(id) !== "RTO") {
