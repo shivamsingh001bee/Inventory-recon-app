@@ -24,6 +24,7 @@ const config: Config = {
         emerald: "#16805A",
         "emerald-light": "#EAF7F1",
         ruby: "#C23B4B",
+        "ruby-dark": "#9E2E3C",
         "ruby-light": "#FBEAEC"
       },
       fontFamily: {

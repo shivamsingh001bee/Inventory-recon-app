@@ -36,6 +36,11 @@
            hover:bg-sapphire-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
+  .btn-danger {
+    @apply bg-ruby text-white font-sans font-semibold text-sm px-4 py-2 rounded
+           hover:bg-ruby-dark transition-colors;
+  }
+
   .btn-ghost {
     @apply border border-line text-ink/70 font-sans font-medium text-sm px-5 py-2.5 rounded
            hover:border-sapphire/50 hover:text-ink hover:bg-sapphire/5 transition-colors;

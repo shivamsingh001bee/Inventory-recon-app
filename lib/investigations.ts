@@ -148,6 +148,55 @@ export async function runAllInvestigations(runBy: string, role: string, reconWee
   return runId;
 }
 
+/**
+ * Runs exactly one investigation (admin-only, enforced by the caller route).
+ * Same DELETE+INSERT-as-one-script shape as runAllInvestigations, just for a
+ * single id, so a user doesn't have to wait on all 14 to check one fix.
+ */
+export async function runSingleInvestigation(
+  id: string,
+  runBy: string,
+  role: string,
+  reconWeek: string
+): Promise<{ runId: string; displayName: string }> {
+  const bq = getBigQuery();
+  const runId = uuid();
+
+  const [rows] = await bq.query({
+    query: `
+      SELECT id, display_name, view_name, table_name
+      FROM ${table("investigations")}
+      WHERE id = @id AND is_active = TRUE
+      LIMIT 1
+    `,
+    params: { id }
+  });
+
+  if (rows.length === 0) {
+    throw new Error(`Unknown or inactive investigation: ${id}`);
+  }
+
+  const inv = rows[0] as Investigation;
+  const tbl = table(assertSafeIdentifier(inv.table_name, "table_name"));
+  const view = table(assertSafeIdentifier(inv.view_name, "view_name"));
+
+  const script = [
+    `DELETE FROM ${tbl} WHERE recon_week = CAST(@reconWeek AS DATE);`,
+    `INSERT INTO ${tbl}`,
+    `SELECT @runId, CAST(@reconWeek AS DATE), CURRENT_TIMESTAMP(), @runBy, v.*`,
+    `FROM ${view} v;`,
+    `INSERT INTO ${table("investigation_runs")} (run_id, recon_week, run_by, run_role, run_at)`,
+    `VALUES (@runId, CAST(@reconWeek AS DATE), @runBy, @role, CURRENT_TIMESTAMP());`
+  ].join("\n");
+
+  await bq.query({
+    query: script,
+    params: { runId, reconWeek, runBy, role }
+  });
+
+  return { runId, displayName: inv.display_name };
+}
+
 export interface ReportRow {
   [key: string]: unknown;
 }

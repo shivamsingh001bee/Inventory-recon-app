@@ -9,7 +9,6 @@ const links = [
   { href: "/entry/normal", label: "Normal Entry", dot: "bg-sapphire" },
   { href: "/entry/lot", label: "Lot Entry", dot: "bg-topaz" },
   { href: "/entry/no-pkt", label: "No Pkt No.", dot: "bg-amethyst" },
-  { href: "/reports", label: "Reports", dot: "bg-ruby" },
   { href: "/investigations", label: "Investigations", dot: "bg-emerald" }
 ];
 
@@ -20,9 +19,8 @@ export default function Navbar() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <span className="font-display font-semibold text-lg text-ink">Register</span>
           <nav className="flex items-center gap-6">
             {links.map((l) => {
               const active = pathname === l.href;
@@ -53,7 +51,7 @@ export default function Navbar() {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-slate text-sm font-mono">{session?.user?.name}</span>
-          <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-slate hover:text-ink text-sm">
+          <button onClick={() => signOut({ callbackUrl: "/login" })} className="btn-danger">
             Sign out
           </button>
         </div>
